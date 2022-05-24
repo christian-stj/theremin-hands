@@ -11,7 +11,7 @@
     const videoElement = document.getElementsByClassName('input_video')[0];
     const canvasElement = document.getElementsByClassName('output_canvas')[0];
     const canvasCtx = canvasElement.getContext('2d');
-
+    
     function max(landmarks, axis) {
       let values = landmarks.map(obj => obj[axis])
       return Math.max(...values)
@@ -72,37 +72,57 @@
     });
     camera.start();
 
-    document.getElementById("play").addEventListener('click', loadSounds, true);
+    
+
+    var img = document.createElement("img");
+    img.src = "https://www.linkpicture.com/q/there.png";
+    img.setAttribute("width", "1920px");
+    img.setAttribute("height", "1080px")
+    var src = document.getElementById("header");
+    
+    src.appendChild(img);
+    
     //Audio stuff
     var audioCtx
     var oscillator
     var gainNode
+    var filterNode
+    
+    document.getElementById("play").addEventListener('click', loadSounds, true);
 
-    function loadSounds() {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
       // create Oscillator node
       oscillator = audioCtx.createOscillator();
       gainNode = audioCtx.createGain();
+      filterNode = audioCtx.createBiquadFilter();
+    function loadSounds() {
+      filterNode.type = "lowpass"
+      filterNode.frequency.setValueAtTime(600, audioCtx.currentTime);
       gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+      
 
-      oscillator.type = 'sine';
+      oscillator.type = 'sawtooth';
       oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // value in hertz
-      oscillator.connect(gainNode);
+      
+      oscillator.connect(filterNode);
+      filterNode.connect(gainNode);
       gainNode.connect(audioCtx.destination)
       oscillator.start();
     }
-
+    
   </script>
 </head>
 
 <body>
   <audio class="theremin"></audio>
-  <button id="play">Play</button>
+  <button id="play" style="position: relative; z-index: 3;">Play</button>
   <div class="container">
-    <canvas class="output_canvas" width="1280px" height="720px" style="transform: scaleX(-1);"></canvas>
+    <canvas class="output_canvas" width="1280px" height="720px" style="position: relative; z-index: 1; transform: scaleX(-1);"></canvas>    
+    <div id="header" style="position: absolute; top: -300px; left: -350px; z-index: 2; transform: scaleX(-1);
+    "></div>
     <video class="input_video" style="visibility: hidden;"></video>
+    
   </div>
-</body>
-
+<style></style>
 </html>
