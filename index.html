@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script type="module">
+    const videoElement = document.getElementsByClassName('input_video')[0];
+    const canvasElement = document.getElementsByClassName('output_canvas')[0];
+    const canvasCtx = canvasElement.getContext('2d');
+
+    function max(landmarks, axis) {
+      let values = landmarks.map(obj => obj[axis])
+      return Math.max(...values)
+    }
+
+    function min(landmarks, axis) {
+      let values = landmarks.map(obj => obj[axis])
+      return Math.min(...values)
+    }
+
+    function onResults(results) {
+      var oscFrequency
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(
+        results.image, 0, 0, canvasElement.width, canvasElement.height);
+      if (results.multiHandLandmarks) {
+        for (let i = 0; i < results.multiHandedness.length; i++) {
+          if (results.multiHandedness[i]["label"] === "Left") {
+            oscFrequency = (1-min(results.multiHandLandmarks[i], "y")) * 1000
+            oscillator.frequency.setValueAtTime(oscFrequency, audioCtx.currentTime)
+          } else if (results.multiHandedness[i]["label"] === "Right") {
+            var gainVolume = (1 - max(results.multiHandLandmarks[i], "y")) * 2
+            console.log("Gain volume: " + gainVolume)
+            if (gainNode.gain) {
+              gainNode.gain.setValueAtTime(gainVolume * 0.1, audioCtx.currentTime)
+            }
+          }
+
+          drawConnectors(canvasCtx, results.multiHandLandmarks[i], HAND_CONNECTIONS,
+            { color: '#00FF00', lineWidth: 5 });
+          drawLandmarks(canvasCtx, results.multiHandLandmarks[i], { color: '#FF0000', lineWidth: 2 });
+        }
+      }
+      canvasCtx.restore();
+    }
+
+    const hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+    });
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    hands.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+        //Controls
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
+
+    document.getElementById("play").addEventListener('click', loadSounds, true);
+    //Audio stuff
+    var audioCtx
+    var oscillator
+    var gainNode
+
+    function loadSounds() {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // create Oscillator node
+      oscillator = audioCtx.createOscillator();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // value in hertz
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination)
+      oscillator.start();
+    }
+
+  </script>
+</head>
+
+<body>
+  <audio class="theremin"></audio>
+  <button id="play">Play</button>
+  <div class="container">
+    <canvas class="output_canvas" width="1280px" height="720px" style="transform: scaleX(-1);"></canvas>
+    <video class="input_video" style="visibility: hidden;"></video>
+  </div>
+</body>
+
+</html>
